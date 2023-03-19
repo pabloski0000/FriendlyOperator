@@ -2,36 +2,37 @@ package ui
 
 import Calculator
 import OperationAsStringAdapter
-import domain.Timer
+import application.*
+import domain.Operation
+import domain.Operand
+import domain.Time
+import kotlinx.coroutines.*
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
-class UI {
-    private val calculator = Calculator()
-    private val stringOperationAdapter = OperationAsStringAdapter()
+class UI : Alertee {
     private val userInputReader = BufferedReader(
         InputStreamReader(System.`in`)
     )
+    private val userPerformance = UserPerformance()
+    private val checkSolutionUseCase = CheckSolutionUseCase()
+    private val alertMeIfTimeLimitIsExceededUseCase = AlertMeIfTimeLimitIsExceededUseCase()
+    private var timeLimitExceeded = false
+    private val coroutineScopeOnMainThread = CoroutineScope(Dispatchers.Main)
 
-    fun run(numberOfOperations: Int) {
-        val userPerformance = UserPerformance()
-        val timer = Timer()
-        val randomOperationProducer = RandomOperationProducer()
+    suspend fun run(numberOfOperations: Int) {
         val timeLimit = askUserAboutTimeLimitInSeconds()
         for (numberOfOperation in 0 until numberOfOperations) {
-            val operation = randomOperationProducer.getRandomOperation()
-            showOperation(operation)
-            timer.start(timeLimit)
-            while (! timer.timeLimitHasElapsed()) {
-                if (userHasAnswered()) {
-                    timer.stop()
-                    break
-                }
+            val operation = Operation.Multiplication.generateRandomOne()
+            print(OperationPresenter.present(operation))
+            coroutineScopeOnMainThread.launch(Dispatchers.IO) {
+                alertMeIfTimeLimitIsExceededUseCase.alert(timeLimit, this@UI)
             }
-            val calculatorSolution = calculateSolution(operation)
+            val solution = operation.getResult()
+            waitUntilUserRespondsOrTimeLimitIsExceeded()
             if (userHasAnswered()) {
-                val userSolution = readUserSolution()
-                if (solutionFormatIsCorrect(userSolution) && solutionIsCorrect(userSolution, calculatorSolution)) {
+                val userSolution = userInputReader.readLine()
+                if (solutionFormatIsCorrect(userSolution) && checkSolutionUseCase.check(operation, solution)) {
                     userPerformance.addOneCorrectAnswer()
                     print(" Correct")
                 } else {
@@ -52,16 +53,8 @@ class UI {
         return Time.fromSeconds(readln().toDouble())
     }
 
-    private fun showOperation(operation: String) {
-        print("$operation = ")
-    }
-
     private fun solutionFormatIsCorrect(userSolution: String): Boolean {
         return userSolution.toDoubleOrNull() != null
-    }
-
-    private fun solutionIsCorrect(userSolution: String, calculatorSolution: Double): Boolean {
-        return userSolution.toDouble() == calculatorSolution
     }
 
     private fun informUserOfTheirPerformance(userPerformance: UserPerformance, numberOfOperations: Int) {
@@ -71,18 +64,19 @@ class UI {
         println("The percentage of out of time answers is: ${userPerformance.getPercentageOfOutOfTimeAnswers(numberOfOperations)}%")
     }
 
-    private fun calculateSolution(operation: String): Double {
-        return calculator.calculate(
-            stringOperationAdapter.adaptOperation(operation)
-        )
+    private suspend fun waitUntilUserRespondsOrTimeLimitIsExceeded() {
+        while (! (userInputReader.ready() ||  timeLimitExceeded)) {
+            yield()
+        }
+        timeLimitExceeded = false
     }
 
     private fun userHasAnswered(): Boolean {
         return userInputReader.ready()
     }
 
-    private fun readUserSolution(): String {
-        return userInputReader.readLine()
+    override fun timeLimitExceeded() {
+        timeLimitExceeded = true
     }
 }
 

@@ -6,21 +6,39 @@ import java.lang.Exception
 
 class ProducingRealRandomOperationTest {
     private val randomOperationProducer = AppRunner().run().randomOperationProducer
-    private val operationsClassification = generateOperationsClassificationDataStructure(
-        minimumOperand = 2,
-        maximumOperand = 9,
-        )
 
     @Test
     fun itIsProducingReallyRandomOperations() {
         val numberOfOperations = 1000
         val operations = generateOperations(numberOfOperations)
-        val orderedPairs = getOrderedPairsFromOperations(operations)
-        classifyOrderedPairs(orderedPairs)
-        assertOrderedPairsAreDistributedMoreOrLessEqually(numberOfOperations)
+        val operationClassification = classifyOperations(operations)
+        assertOperationsAreGeneratedRandomly(numberOfOperations, operationClassification)
     }
 
-    private fun generateOperationsClassificationDataStructure(
+    private fun classifyOperations(operations: List<String>): MutableMap<Pair<Int, Int>, Int> {
+        val orderedPairs = extractOrderedPairsFromOperations(operations)
+        return classifyOrderedPairs(orderedPairs)
+    }
+
+    private fun classifyOrderedPairs(orderedPairs: List<Pair<Int, Int>>): MutableMap<Pair<Int, Int>, Int> {
+        val orderedPairTable = initialiseOrderedPairTable(
+            minimumOperand = 2,
+            maximumOperand = 9,
+        )
+        return fillOutTableWithOrderedPairs(orderedPairs, orderedPairTable)
+    }
+
+    private fun fillOutTableWithOrderedPairs(
+        orderedPairs: List<Pair<Int, Int>>,
+        table: MutableMap<Pair<Int, Int>, Int>,
+    ): MutableMap<Pair<Int, Int>, Int> {
+        orderedPairs.map { orderedPair ->
+            table[orderedPair] = table[orderedPair]!! + 1
+        }
+        return table
+    }
+
+    private fun initialiseOrderedPairTable(
         minimumOperand: Int,
         maximumOperand: Int,
     ): MutableMap<Pair<Int, Int>, Int> {
@@ -42,19 +60,15 @@ class ProducingRealRandomOperationTest {
         return operations
     }
 
-
-    private fun classifyOrderedPairs(orderedPairs: List<Pair<Int, Int>>) {
-        orderedPairs.map { orderedPair ->
-            operationsClassification[orderedPair] = operationsClassification[orderedPair]!! + 1
-        }
-    }
-
-    private fun assertOrderedPairsAreDistributedMoreOrLessEqually(numberOfOperations: Int) {
-        val perfectPercentageOfAppearance = 100.0 / operationsClassification.size
+    private fun assertOperationsAreGeneratedRandomly(
+        numberOfOperations: Int,
+        operationClassification: MutableMap<Pair<Int, Int>, Int>,
+    ) {
+        val perfectPercentageOfAppearance = 100.0 / operationClassification.size
         val allowedError = 5
         val minimumAppearancePercentage = perfectPercentageOfAppearance - allowedError
         val maximumAppearancePercentage = perfectPercentageOfAppearance + allowedError
-        for ((orderedPair, numberOfTimesThatHasAppeared) in operationsClassification) {
+        for ((orderedPair, numberOfTimesThatHasAppeared) in operationClassification) {
             val orderedPairPercentageAppearance = numberOfTimesThatHasAppeared.toDouble() / numberOfOperations * 100
             if (orderedPairPercentageAppearance !in minimumAppearancePercentage..maximumAppearancePercentage) {
                 throw Exception("The ordered pair $orderedPair appears $orderedPairPercentageAppearance%" +
@@ -66,7 +80,7 @@ class ProducingRealRandomOperationTest {
         }
     }
 
-    private fun getOrderedPairsFromOperations(operations: List<String>): List<Pair<Int, Int>> {
+    private fun extractOrderedPairsFromOperations(operations: List<String>): List<Pair<Int, Int>> {
         val orderedPairsFromOperations = mutableListOf<Pair<Int, Int>>()
         operations.map { operation ->
             orderedPairsFromOperations.add(getOrderedPairFromAOperation(operation))

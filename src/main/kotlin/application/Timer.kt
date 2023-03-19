@@ -1,7 +1,7 @@
-package domain
+package application
 
-import ui.Time
-import kotlin.properties.Delegates
+import domain.TimeBeforeOperationGetsSolved
+import domain.Time
 
 /**
  * This component starts a new thread, different from the client's one

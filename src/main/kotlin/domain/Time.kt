@@ -1,4 +1,4 @@
-package ui
+package domain
 
 import kotlin.math.roundToLong
 

@@ -1,4 +1,4 @@
-package ui
+package application
 
 class UserPerformance() {
     private var correctAnswers = 0
